@@ -310,54 +310,75 @@ out[idx] = tile[icol][irow] ;
 global void setRowReadColDyn(int *out) { // dynamic shared memory extern shared int tile[]; // mapping from thread index to global memory index unsigned int idx = threadIdx.y * blockDim.x + threadIdx.x;
 
 // convert idx to transposed (row, col)
+
 unsigned int irow = idx / blockDim.y;
+
 unsigned int icol = idx % blockDim.y;
 
 // convert back to smem idx to access the transposed element
+
 unsigned int col_idx = icol * blockDim.x + irow;
 
 // shared memory store operation
+
 tile[idx] = idx;
 
 // wait for all threads to complete
+
 __syncthreads();
 
 // shared memory load operation
+
 out[idx] = tile[col_idx];
+
 }
 
 global void setRowReadColDynPad(int *out) { // dynamic shared memory extern shared int tile[];
 
 // mapping from thread index to global memory index
+
 unsigned int g_idx = threadIdx.y * blockDim.x + threadIdx.x;
 
 // convert idx to transposed (row, col)
+
 unsigned int irow = g_idx / blockDim.y;
+
 unsigned int icol = g_idx % blockDim.y;
 
 unsigned int row_idx = threadIdx.y * (blockDim.x + IPAD) + threadIdx.x;
 
 // convert back to smem idx to access the transposed element
+
 unsigned int col_idx = icol * (blockDim.x + IPAD) + irow;
 
 // shared memory store operation
+
 tile[row_idx] = g_idx;
 
 // wait for all threads to complete
+
 __syncthreads();
 
 // shared memory load operation
+
 out[g_idx] = tile[col_idx];
+
 }
 
-int main(int argc, char **argv) { // set up device int dev = 0; cudaDeviceProp deviceProp; CHECK(cudaGetDeviceProperties(&deviceProp, dev)); printf("%s at ", argv[0]); printf("device %d: %s ", dev, deviceProp.name); CHECK(cudaSetDevice(dev));
+int main(int argc, char **argv) { // set up device int dev = 0; cudaDeviceProp deviceProp; CHECK(cudaGetDeviceProperties(&deviceProp, dev)); printf("%s at ", argv[0]); printf("device %d: %s ", dev, 
+
+deviceProp.name); CHECK(cudaSetDevice(dev));
 
 cudaSharedMemConfig pConfig;
+
 CHECK(cudaDeviceGetSharedMemConfig ( &pConfig ));
+
 printf("with Bank Mode:%s ", pConfig == 1 ? "4-Byte" : "8-Byte");
 
 // set up array size
+
 int nx = BDIMX;
+
 int ny = BDIMY;
 
 bool iprintf = 0;
@@ -367,63 +388,92 @@ if (argc > 1) iprintf = atoi(argv[1]);
 size_t nBytes = nx * ny * sizeof(int);
 
 // execution configuration
+
 dim3 block (BDIMX, BDIMY);
+
 dim3 grid  (1, 1);
+
 printf("<<< grid (%d,%d) block (%d,%d)>>>\n", grid.x, grid.y, block.x,
+       
         block.y);
 
 // allocate device memory
+
 int *d_C;
+
 CHECK(cudaMalloc((int**)&d_C, nBytes));
+
 int *gpuRef  = (int *)malloc(nBytes);
 
 CHECK(cudaMemset(d_C, 0, nBytes));
+
 setRowReadRow<<<grid, block>>>(d_C);
+
 CHECK(cudaMemcpy(gpuRef, d_C, nBytes, cudaMemcpyDeviceToHost));
 
 if(iprintf)  printData("setRowReadRow       ", gpuRef, nx * ny);
+
 CHECK(cudaMemset(d_C, 0, nBytes)); setColReadCol<<<grid, block>>>(d_C); CHECK(cudaMemcpy(gpuRef, d_C, nBytes, cudaMemcpyDeviceToHost));
 
 if(iprintf)  printData("setColReadCol       ", gpuRef, nx * ny);
 
 CHECK(cudaMemset(d_C, 0, nBytes));
+
 setColReadCol2<<<grid, block>>>(d_C);
+
 CHECK(cudaMemcpy(gpuRef, d_C, nBytes, cudaMemcpyDeviceToHost));
 
 if(iprintf)  printData("setColReadCol2      ", gpuRef, nx * ny);
 
 CHECK(cudaMemset(d_C, 0, nBytes));
+
 setRowReadCol<<<grid, block>>>(d_C);
+
 CHECK(cudaMemcpy(gpuRef, d_C, nBytes, cudaMemcpyDeviceToHost));
 
 if(iprintf)  printData("setRowReadCol       ", gpuRef, nx * ny);
 
 CHECK(cudaMemset(d_C, 0, nBytes));
+
 setRowReadColDyn<<<grid, block, BDIMX*BDIMY*sizeof(int)>>>(d_C);
+
 CHECK(cudaMemcpy(gpuRef, d_C, nBytes, cudaMemcpyDeviceToHost));
 
 if(iprintf)  printData("setRowReadColDyn    ", gpuRef, nx * ny);
 
 CHECK(cudaMemset(d_C, 0, nBytes));
+
 setRowReadColPad<<<grid, block>>>(d_C);
+
 CHECK(cudaMemcpy(gpuRef, d_C, nBytes, cudaMemcpyDeviceToHost));
 
 if(iprintf)  printData("setRowReadColPad    ", gpuRef, nx * ny);
 
 CHECK(cudaMemset(d_C, 0, nBytes));
+
 setRowReadColDynPad<<<grid, block, (BDIMX + IPAD)*BDIMY*sizeof(int)>>>(d_C);
+
 CHECK(cudaMemcpy(gpuRef, d_C, nBytes, cudaMemcpyDeviceToHost));
 
 if(iprintf)  printData("setRowReadColDynPad ", gpuRef, nx * ny);
 
 // free host and device memory
+
 CHECK(cudaFree(d_C));
+
 free(gpuRef);
 
 // reset device
+
 CHECK(cudaDeviceReset());
+
 return EXIT_SUCCESS;
+
 }
+
+## OUTPUT:
+
+![JJJJJJJJJJJJJJJJJ](https://github.com/maha712/PCA-EXP-6-MATRIX-TRANSPOSITION-USING-SHARED-MEMORY-AY-23-24/assets/121156360/90c23a8e-c273-4245-b544-bd62b20b0f57)
 
 ## RESULT:
 Thus the program has been executed by using CUDA to transpose a matrix. It is observed that there are variations shared memory and global memory implementation. The elapsed times are recorded as _______________.
